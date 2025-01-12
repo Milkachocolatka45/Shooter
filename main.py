@@ -13,76 +13,89 @@ bg = transform.scale(image.load("images/kocmoc.png"), (W, H))
 clock = time.Clock()
 
 class GameSprite(sprite.Sprite):
-    def __init__ (self, x, y, width, height, speed, img):
-        super().__init__()
-        self.width = width
+    def __init__ (self, x, y, width, height, speed, img):#констуктор класу
+        super().__init__()#Виклик базового констуктора класу
+        self.width = width #властивості
         self.height = height
         self.speed = speed
-        self.image = transform.scale(image.load(img), (width, height))
+        self.image = transform.scale(image.load(img), (width, height))# завантаження і маштабування зображення
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
 
-    def draw(self):
-        window.blit(self.image, (self.rect.x, self.rect.y))
+    def draw(self): # метод для відображення спрайту
+        window.blit(self.image, (self.rect.x, self.rect.y))#малювання спрайту на вікні
 
 class Player(GameSprite):
-    def move(self):
-        keys_pressed = key.get_pressed()
-        if keys_pressed[K_a] and self.rect.x < W - self.width:
+    def move(self):# метод для руху гравця
+        keys_pressed = key.get_pressed()# отримання натиснутих клавіш
+        if keys_pressed[K_a] and self.rect.x > 0:
             self.rect.x -= self.speed
-        if keys_pressed[K_d] and self.rect.x < W + self.width:
+        if keys_pressed[K_d] and self.rect.x < W - self.width:
             self.rect.x += self.speed
+        
+    def fire(self):
+        bullet = Bullet(self.rect.centerx, self.rect.top, 15, 20, 20, 'images/bullet.png')
+        bullets.add(bullet)
 
 class Enemy(GameSprite):
-    def update(self):
-        global killed 
-        self.rect.y += self.speed
-        if self.rect.y > H - self.height:
-            self.rect.x = randit(0, W - self.width)
-            self.rect.y = 0
-            killed += 1
+    def update(self):#метод для оновлення положення ворога
+        global skipped #глобальна зиінна для підрахунку пропущених
+        self.rect.y += self.speed #вниз
+        if self.rect.y > H - self.height:#ворог вийшов за межі екрану
+            self.rect.x = randint(0, W - self.width) #рандомна позиція після ріткнення або вбиття риби по х
+            self.rect.y = 0 #скидання позиції по у
+            skipped += 1 #збільшення пропущених ворогів
 
 class Asteroid(GameSprite):
     def __init__ (self, x, y, width, height, speed, img):
-        super().__init__( x, y, width, height, speed, img)
+        super().__init__( x, y, width, height, speed, img)#стоворення базових властиврстей
         self.angle = 0
         self.original_image = self.image
-
 
     def update(self):
         self.rect.y += self.speed
         self.angle += 2.5
         self.image = transform.rotate(self.original_image, self.angle)
+        self.rect = self.image.get_rect(center=self.rect.center)
         if self.rect.y > H - self.height:
-            self.rect.x = randit(0, W - self.width)
+            self.rect.x = randint(0, W - self.width)
             self.rect.y = 0
 
+class Bullet(GameSprite):
+    def update(self):
+        self.rect.y -= self.speed
+        if self.rect.y < 0:
+            self.kill()
 
 
-
-
-player = Player(W/2, H - 100, 200, 100, 5, "images/kot1.png")
+player = Player(W/2, H - 100, 70, 100, 5, "images/kot1.png")
 enemies = sprite.Group()
-for i in range(5):
+for i in range(10):
     enemy = Enemy (randint (0, W-70), randint(-35, 10), 70, 35, randint(1, 3), 'images/puba1.png')
     enemies.add(enemy)
-asteroid1 = Asteroid (randint (0, W-70), randint(-35, 10), 70, 35, randint(1, 3), 'images/ufo.png')
+
+asteroids = sprite.Group()
+for i in range(3):
+    asteroid1 = Asteroid (randint (0, W-70), randint(-35, 10), 70, 35, randint(1, 3), 'images/asteroid1.png')
+    asteroids.add(asteroid1)
+
+bullets = sprite.Group()
 
 
 life = 3
-kill = 0
+killed = 0
 skipped = 0
 game = True
 while game:
     for e in event.get():
         if e.type == QUIT:
             game = False
+        if e.type == KEYDOWN:
+            if e.key == K_SPACE:
+                player.fire()
 
 
-
-
-    
 
     window.blit(bg, (0, 0))
     player.draw()
@@ -91,8 +104,30 @@ while game:
     enemies.draw(window)
     enemies.update()
 
-    asteroid1.draw()
-    asteroid1.update()
+    asteroids.draw(window)
+    asteroids.update()
 
+    bullets.draw(window)
+    bullets.update()
+
+    if sprite.groupcollide(bullets, enemies, True, True):
+        killed += 1 
+        enemy = Enemy (randint (0, W-70), randint(-35, 10), 70, 35, randint(1, 3), 'images/puba1.png')
+        enemies.add(enemy)
+
+    if sprite.groupcollide (bullets, asteroids, True, False):
+        pass
+
+    if sprite.spritecollide(player, asteroids, True):
+        life -= 1
+        asteroid1 = Asteroid (randint (0, W-70), randint(-35, 10), 70, 35, randint(1, 3), 'images/asteroid1.png')
+        asteroids.add(asteroid1)
+
+    if sprite.spritecollide(player, enemies, True):
+        life -= 1
+        enemy = Enemy (randint (0, W-70), randint(-35, 10), 70, 35, randint(1, 3), 'images/puba1.png')
+        enemies.add(enemy)
+
+    
     display.update()
     clock.tick(60)
